@@ -39,72 +39,75 @@ class SensorState(QThread):
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
-    
-    def __init__(self):
+
+    def __init__(self, device):
         super().__init__()
         self._run_flag = True
         self.cap = None
+        self.device = device
 
-    def run(self):    
-        # capture from web cam
-        self.cap = cv2.VideoCapture("/dev/video0")
-
-        # Verificar se a câmera foi aberta com sucesso
+    def run(self):
+        # self.cap = cv2.VideoCapture("/dev/video2")
+        self.cap = cv2.VideoCapture(self.device)
         if not self.cap.isOpened():
-            print("Erro ao abrir a câmera")
-            return
+            ErroCamera = "Erro ao abrir a câmera"
+            return ErroCamera
 
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+        # Máxima Resolução:
+        self.WIDTH = 3840
+        self.HEIGHT = 2160
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.HEIGHT)
         self.cap.set(cv2.CAP_PROP_FPS, 30)
-        self.cap.set(cv2.CAP_PROP_EXPOSURE, 156)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840.0)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160.0)
-        
-        print("Configurações da câmera:")
-        print(self.cap.get(cv2.CAP_PROP_FPS))
-        print(self.cap.get(cv2.CAP_PROP_BRIGHTNESS))
-        print(self.cap.get(cv2.CAP_PROP_CONTRAST))
-        print(self.cap.get(cv2.CAP_PROP_HUE))
-        print(self.cap.get(cv2.CAP_PROP_SATURATION))
-        print(self.cap.get(cv2.CAP_PROP_SHARPNESS))
-        print(self.cap.get(cv2.CAP_PROP_GAMMA))
-        print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_RED_V))
-        print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_BLUE_U))
-        print(self.cap.get(cv2.CAP_PROP_EXPOSURE))
-        print(self.cap.get(cv2.CAP_PROP_GAIN))
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, -3)
 
-        while self._run_flag:  # Loop enquanto a flag de execução estiver True
+        while self._run_flag:
             ret, cv_img = self.cap.read()
             if ret:
-                print("Frame capturado:")
-                print(self.cap.get(cv2.CAP_PROP_BRIGHTNESS))
-                print(self.cap.get(cv2.CAP_PROP_CONTRAST))
-                print(self.cap.get(cv2.CAP_PROP_HUE))
-                print(self.cap.get(cv2.CAP_PROP_SATURATION))
-                print(self.cap.get(cv2.CAP_PROP_SHARPNESS))
-                print(self.cap.get(cv2.CAP_PROP_GAMMA))
-                print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_RED_V))
-                print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_BLUE_U))
-                print(self.cap.get(cv2.CAP_PROP_EXPOSURE))
-                print(self.cap.get(cv2.CAP_PROP_GAIN))
-                print("_______________________________")
+                # print("Frame capturado:")
+                # print(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                # print(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                # # time.sleep(19)
+                # print(self.cap.get(cv2.CAP_PROP_FPS))
+                # print(self.cap.get(cv2.CAP_PROP_BRIGHTNESS))
+                # print(self.cap.get(cv2.CAP_PROP_CONTRAST))
+                # print(self.cap.get(cv2.CAP_PROP_HUE))
+                # print(self.cap.get(cv2.CAP_PROP_SATURATION))
+                # print(self.cap.get(cv2.CAP_PROP_SHARPNESS))
+                # print(self.cap.get(cv2.CAP_PROP_GAMMA))
+                # print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_RED_V))
+                # print(self.cap.get(cv2.CAP_PROP_WHITE_BALANCE_BLUE_U))
+                # print(self.cap.get(cv2.CAP_PROP_EXPOSURE))
+                # print(self.cap.get(cv2.CAP_PROP_GAIN))
+                # print(self.cap.get(cv2.CAP_PROP_AUTOFOCUS))
+                # print(self.cap.get(cv2.CAP_PROP_AUTO_WB))
+                # print(self.cap.get(cv2.CAP_PROP_AUTO_EXPOSURE))
+                # print("_______________________________")
 
                 self.change_pixmap_signal.emit(cv_img)
             else:
                 print("Erro ao capturar frame")
                 break
-        
+
         self.cap.release()
-    
+
+    def camParams(self):
+        self.FPS = self.cap.get(cv2.CAP_PROP_FPS)
+        self.WIDTH = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.HEIGHT = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        return self.FPS, self.WIDTH, self.HEIGHT
+
     def frame(self):
         if self.cap and self.cap.isOpened():
-            # Capturar apenas um frame
             result, frame = self.cap.read()
             if result:
                 return frame
         return None
-    
+
     def stop(self):
-        """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self.wait()
 
@@ -126,15 +129,11 @@ class VideoThread(QThread):
         self.wait()
 
 class Window_IOMonitor(QDialog):
-    def __init__(self, pi, Q01_iluWhite, Q02_iluUV, inputs):
+    def __init__(self):
         super().__init__()
         self.ui = uic.loadUi("IO_page.ui", self)
         self.setWindowTitle("IO Monitor")
         self.setFixedSize(510, 200)
-        self.pi = pi
-
-        self.Q01_iluWhite = Q01_iluWhite
-        self.Q02_iluUV = Q02_iluUV
         
         # Set initial state of checkboxes to match the initial state of the LEDs
         # self.ui.checkBox_3.setChecked(True)
@@ -142,6 +141,7 @@ class Window_IOMonitor(QDialog):
         self.ui.checkBox_3.stateChanged.connect(lambda state, pin=23: self.handle_checkbox_state(state, pin))
         self.ui.checkBox_4.stateChanged.connect(lambda state, pin=24: self.handle_checkbox_state(state, pin))
         
+        self.sensor_threads = []
         gpio_pins = [17, 27, 22]  # Lista dos pinos GPIO que voc deseja monitorar
         for pin in gpio_pins:
             thread = SensorState(pin)
@@ -149,7 +149,7 @@ class Window_IOMonitor(QDialog):
             thread.start()
             self.sensor_threads.append(thread)
 
-        self.last_gpio_states = {input.pin.number: None for input in inputs}
+        self.last_gpio_states = {pin: None for pin in gpio_pins}
 
     def handle_checkbox_state(self, state, pin):
         if state == Qt.Checked:
@@ -159,13 +159,19 @@ class Window_IOMonitor(QDialog):
 
     @pyqtSlot(bool)
     def update_GPIO_state(self, gpio_state):
+        # Identificar de qual thread o sinal foi emitido
         sender_thread = self.sender()
-        button = sender_thread.pin
-        pin = button.pin.number
-
+        # Encontrar o ndice da thread na lista de threads
+        thread_index = self.sensor_threads.index(sender_thread)
+        # Identificar o pino GPIO correspondente ao ndice
+        pin = sender_thread.pin
+        
+        # Verificar se houve uma mudana de estado
         if gpio_state != self.last_gpio_states[pin]:
+            # Atualizar o estado anterior
             self.last_gpio_states[pin] = gpio_state
-
+            
+            # Atualizar a interface do usurio de acordo com o estado do pino GPIO
             if gpio_state:
                 self.set_gpio_indicator_color(pin, "red")
             else:
@@ -183,12 +189,11 @@ class Window_IOMonitor(QDialog):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, pi, inputs, outputs):
+    def __init__(self):
         super().__init__()
         self.ui = uic.loadUi("interfaceQT.ui", self)
         self.setWindowTitle("HFA0001")
 
-        self.pi = pi 
         self.opMode = None # Operation Mode (Automatic/Manual)
         self.STOP_state = None
         self.PREPARED = True
@@ -197,11 +202,12 @@ class MainWindow(QMainWindow):
         self.display_height = 2160
 
         ##################################################
-        #            Outputs & Inputs                    #
+        #                   Inputs                       #
         ##################################################
-        self.Q01_iluWhite, self.Q02_iluUV = outputs
-        self.Q02_iluUV.on() # UV light always on, to avoid damaging it
-        self.B01_doorLeft, self.B02_doorRight, self.B03_board = inputs
+        self.B01_doorLeft = IO.input(17)
+        self.B02_doorRight = IO.input(27)
+        self.B03_board = IO.input(22)
+        self.inputs = [self.B01_doorLeft, self.B02_doorRight, self.B03_board]
 
         ##################################################
         #                    Pages                       #
@@ -209,7 +215,7 @@ class MainWindow(QMainWindow):
         self.ui.btn_home.clicked.connect(lambda: self.ui.stackedWidget_Pages.setCurrentWidget(self.ui.homePage))
         self.ui.btn_camara.clicked.connect(lambda: self.ui.stackedWidget_Pages.setCurrentWidget(self.ui.camaraPage))
         # IO monitor Pop-up:
-        self.Win_showIO = Window_IOMonitor(self.pi, self.Q01_iluWhite, self.Q02_iluUV, inputs)
+        self.Win_showIO = Window_IOMonitor()
 
         ##################################################
         #            Buttons conections                  #
@@ -224,7 +230,7 @@ class MainWindow(QMainWindow):
         ##################################################
         #                   Camara                       #
         ##################################################
-        self.videoDevice = "/dev/video2"
+        self.videoDevice = "/dev/video0"
         self.thread = VideoThread(self.videoDevice)
         self.thread.change_pixmap_signal.connect(self.update_image)
         self.thread.start()
@@ -282,12 +288,13 @@ class MainWindow(QMainWindow):
         warnings = {
             self.B01_doorLeft: "WARN002 - Porta Esquerda Aberta",
             self.B02_doorRight: "WARN003 - Porta Direita Aberta",
-            self.B03_board: "WARN004 - Sem presença de tabueliro"
+            self.B03_board: "WARN004 - Sem presença de Tabuleiro"
         }
         all_pressed = True
         warning_messages = []
-        for inputs, warning in warnings.items():
-            if not inputs.is_pressed:
+        print(self.inputs)
+        for self.inputs, warning in warnings.items():
+            if self.inputs:
                 all_pressed = False
                 time_str = self.DateTime.toString('hh:mm:ss')
                 warning_messages.append(f"{time_str}   {warning}")
@@ -310,7 +317,7 @@ class MainWindow(QMainWindow):
         elif self.opMode == "AUTO":
             if all_pressed:
                 self.auto_mode_operation()
-            elif self.B03_board.is_pressed:
+            elif self.B03_board:
                 self.start_auto_timer()
 
         else:
@@ -374,7 +381,6 @@ class MainWindow(QMainWindow):
         UVImage = self.thread.frame()
         cv2.imwrite(f"Image2_{minutes}.png", UVImage)
 
-        self.Q01_iluWhite.off()
         try:
             final_result = algoritm.main(whiteImage, UVImage)
             cv2.imwrite("FINALImg.png", final_result)
@@ -398,11 +404,14 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
 
+    ##################################################
+    #            Outputs & Inputs                    #
+    ##################################################
     # IO Board
     IO_INPUT = [17,27,22]
     IO_OUTPUT = [23,24]
     IO.setwarnings(False)
-    IO.setmode(IO.DCM)
+    IO.setmode(IO.BCM)
     
     for input_pins in IO_INPUT:
         IO.setup(input_pins, IO.IN)
@@ -410,7 +419,7 @@ if __name__ == "__main__":
     for output_pins in IO_OUTPUT:
         IO.setup(output_pins, IO.OUT, initial=IO.LOW)
     
-    IO.output(18, IO.HIGH)
+    IO.output(24, IO.HIGH)
 
     app = QApplication(sys.argv)
     mainWindow = MainWindow()
