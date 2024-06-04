@@ -188,7 +188,6 @@ class MainWindow(QMainWindow):
         self.ui = uic.loadUi("interfaceQT.ui", self)
         self.setWindowTitle("HFA0001")
 
-        self.pi = pi 
         self.opMode = None # Operation Mode (Automatic/Manual)
         self.STOP_state = None
         self.PREPARED = True
@@ -402,7 +401,7 @@ if __name__ == "__main__":
     IO_INPUT = [17,27,22]
     IO_OUTPUT = [23,24]
     IO.setwarnings(False)
-    IO.setmode(IO.DCM)
+    IO.setmode(IO.BCM)
     
     for input_pins in IO_INPUT:
         IO.setup(input_pins, IO.IN)

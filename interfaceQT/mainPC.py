@@ -191,6 +191,7 @@ class MainWindow(QMainWindow):
         self.Q01_iluWhite, self.Q02_iluUV = outputs
         self.Q02_iluUV.on() # UV light always on, to avoid damaging it
         self.B01_doorLeft, self.B02_doorRight, self.B03_board = inputs
+        self.inputs = [self.B01_doorLeft, self.B02_doorRight, self.B03_board]
 
         ##################################################
         #                    Pages                       #
@@ -268,26 +269,29 @@ class MainWindow(QMainWindow):
 
     def startMod(self):
         self.STOP_state = False
-        warnings = {
-            self.B01_doorLeft: "WARN002 - Porta Esquerda Aberta",
-            self.B02_doorRight: "WARN003 - Porta Direita Aberta",
-            self.B03_board: "WARN004 - Sem presença de tabueliro"
-        }
-        all_pressed = True
-        warning_messages = []
-        for inputs, warning in warnings.items():
-            if not inputs.is_pressed:
-                all_pressed = False
-                time_str = self.DateTime.toString('hh:mm:ss')
-                warning_messages.append(f"{time_str}   {warning}")
-
-        if warning_messages:
-            self.textEdit.setTextColor(QtGui.QColor("orange"))
-            for message in warning_messages:
-                self.textEdit.append(message)
-            self.textEdit.setTextColor(QtGui.QColor("black"))
+        print(self.inputs)
+        # if not self.inputs.is_pressed:
+        #     all_pressed = False
 
         if self.opMode == "MANUAL":
+            warnings = {
+                self.B01_doorLeft: "WARN002 - Porta Esquerda Aberta",
+                self.B02_doorRight: "WARN003 - Porta Direita Aberta",
+                self.B03_board: "WARN004 - Sem presença de tabueliro"}
+            
+            all_pressed = True
+            warning_messages = []
+            for inputs, warning in warnings.items():
+                if not inputs.is_pressed:
+                    all_pressed = False
+                    time_str = self.DateTime.toString('hh:mm:ss')
+                    warning_messages.append(f"{time_str}   {warning}")
+
+            if warning_messages:
+                self.textEdit.setTextColor(QtGui.QColor("orange"))
+                for message in warning_messages:
+                    self.textEdit.append(message)
+                self.textEdit.setTextColor(QtGui.QColor("black"))
             if all_pressed:
                 while not self.STOP_state:
                     self.btn_START.setEnabled(False)
