@@ -64,8 +64,10 @@ class VideoThread(QThread):
         if not self.cap.isOpened():
             print("Erro ao abrir a câmera")
             return
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
 
-        self.cap.set(cv2.CAP_PROP_FPS, 10)
+        self.cap.set(cv2.CAP_PROP_FPS, 5)
         self.cap.set(cv2.CAP_PROP_EXPOSURE, 156)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840.0)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160.0)
@@ -106,6 +108,12 @@ class VideoThread(QThread):
         
         self.cap.release()
     
+    def camParams(self):
+        self.FPS = self.cap.get(cv2.CAP_PROP_FPS)
+        self.WIDTH = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.HEIGHT = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        return self.FPS, self.WIDTH, self.HEIGHT
+    
     def frame(self):
         if self.cap and self.cap.isOpened():
             # Capturar apenas um frame
@@ -128,15 +136,15 @@ class Window_IOMonitor(QDialog):
         self.setFixedSize(510, 200)
 
         # Conectar o sinal stateChanged da checkBox_3 ao método handle_checkbox_state para o pino 16
-        self.ui.checkBox_3.stateChanged.connect(lambda state, pin=16: self.handle_checkbox_state(state, pin))
+        self.ui.checkBox_3.stateChanged.connect(lambda state, pin=23: self.handle_checkbox_state(state, pin))
         # Conectar o sinal stateChanged da checkBox_4 ao método handle_checkbox_state para o pino 18
-        self.ui.checkBox_4.stateChanged.connect(lambda state, pin=18: self.handle_checkbox_state(state, pin))
+        self.ui.checkBox_4.stateChanged.connect(lambda state, pin=24: self.handle_checkbox_state(state, pin))
         
         # Lista para armazenar as threads de monitoramento de GPIO
         self.sensor_threads = []
         
         # Instanciando as threads para monitorar os pinos GPIO desejados
-        gpio_pins = [11, 13, 15]  # Lista dos pinos GPIO que voc deseja monitorar
+        gpio_pins = [17, 27, 22]  # Lista dos pinos GPIO que voc deseja monitorar
         for pin in gpio_pins:
             thread = SensorState(pin)
             thread.gpio_state_changed.connect(self.update_GPIO_state)
@@ -210,6 +218,8 @@ class MainWindow(QMainWindow):
         # Home page
         #Buttons
         self.btn_STOP.setEnabled(False)
+        self.btn_START.setEnabled(True)
+
 
         self.btn_IO.clicked.connect(self.openIOmonitor)
         self.btn_AUTO.clicked.connect(self.autoMode)
@@ -248,6 +258,12 @@ class MainWindow(QMainWindow):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(cv_img)
         self.lb_videoImage.setPixmap(qt_img)
+
+        # Display Params of camera
+        self.FPS, self.WIDTH, self.HEIGHT = self.thread.camParams()
+        self.lb_FPS.setText(f"{self.FPS}")
+        self.lb_WIDTH.setText(f"{self.WIDTH}")
+        self.lb_HEIGHT.setText(f"{self.HEIGHT}")
     
     def convert_cv_qt(self, cv_img):
         """Convert from an opencv image to QPixmap"""
@@ -289,10 +305,10 @@ class MainWindow(QMainWindow):
             cv2.imwrite("Image2.png", UVImage)
 
             # White Image capture
-            IO.output(16, IO.HIGH)
+            IO.output(23, IO.HIGH)
             time.sleep(10)
             whiteImage = self.thread.frame()
-            IO.output(16, IO.LOW)
+            IO.output(23, IO.LOW)
             cv2.imwrite("Image1.png", whiteImage)
             
             try:
@@ -389,10 +405,13 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     
     # IO Board
-    IO_INPUT = [11,13,15]
-    IO_OUTPUT = [16,18]
+    # Define the GPIO numbers for inputs and outputs
+    IO_INPUT = [17, 27, 22]  # GPIO17, GPIO27, GPIO22
+    IO_OUTPUT = [23, 24]     # GPIO23, GPIO24
+    
+    # Set up the GPIO
     IO.setwarnings(False)
-    IO.setmode(IO.BOARD)
+    IO.setmode(IO.BCM)  # Use BCM numbering
     
     for input_pins in IO_INPUT:
         IO.setup(input_pins, IO.IN)
@@ -400,7 +419,7 @@ if __name__ == "__main__":
     for output_pins in IO_OUTPUT:
         IO.setup(output_pins, IO.OUT, initial=IO.LOW)
     
-    IO.output(18, IO.HIGH)
+    IO.output(24, IO.HIGH)
 
         
     app = QApplication([])
